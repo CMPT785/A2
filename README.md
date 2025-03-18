@@ -17,6 +17,4 @@ Making changes and rebuilding the app : `docker compose build`
 * Sensitive data exposure
 * Cryptographic failures
 * Cookies
-* Anything else you may find
-
-### Added SonarCloud scanning
+* Anything else you may find ;)

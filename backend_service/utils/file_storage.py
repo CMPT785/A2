@@ -9,22 +9,49 @@ class FileStorage(Storage):
         # Should move to an S3 bucket in future to store the data so it's more scalable
         self.storage_directory = storage_directory
         try:
-            os.mkdir(storage_directory)
+            os.mkdir(storage_directory, exist_ok=True)
         except:
-            pass
+            return Exception("Could not create storage directory")
+    
     
     def store(self, filename, contents):
-        with open(self.storage_directory + '/' + filename, 'wb') as fp:
+        # Sanitize filename to prevent path traversal
+        safe_filename = os.path.basename(filename)
+        
+        if len(contents) > 10 * 1024 * 1024:  # 10 MB
+            raise ValueError("File too large")
+            
+        file_path = os.path.join(self.storage_directory, safe_filename)
+        with open(file_path, 'wb') as fp:
             fp.write(contents)
-    
+
     def get(self, filename):
-        with open(self.storage_directory + '/' + filename, 'rb') as fp:
-            contents = fp.read()
-        return contents
+        # Sanitize filename to prevent path traversal
+        safe_filename = os.path.basename(filename)
+        file_path = os.path.join(self.storage_directory, safe_filename)
+        
+        # Prevent directory traversal
+        if not os.path.abspath(file_path).startswith(os.path.abspath(self.storage_directory)):
+            raise ValueError("Invalid file path")
+            
+        try:
+            with open(file_path, 'rb') as fp:
+                contents = fp.read()
+            return contents
+        except FileNotFoundError:
+            return None
     
     def delete(self, filename):
+        # Sanitize filename to prevent path traversal
+        safe_filename = os.path.basename(filename)
+        file_path = os.path.join(self.storage_directory, safe_filename)
+        
+        # Prevent directory traversal
+        if not os.path.abspath(file_path).startswith(os.path.abspath(self.storage_directory)):
+            raise ValueError("Invalid file path")
+            
         try:
-            os.remove(self.storage_directory + '/' + filename)
-            return 0
-        except Exception as ex:
-            return -1
+            os.remove(file_path)
+            return True
+        except Exception:
+            return False
