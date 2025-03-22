@@ -137,7 +137,14 @@ def login():
 @app.route("/logout", methods=["POST"])
 def logout():
     res = make_response(jsonify({"message": "Logout successful"}))
-    res.set_cookie("token", "", expires=0)
+    res.set_cookie(
+        "token", 
+        "", 
+        expires=0, 
+        secure=True,      # Ensures cookie is only sent over HTTPS
+        httponly=True,    # Prevents JavaScript access to cookie
+        samesite='Strict' # Prevents CSRF attacks
+    )
     return res
 
 
@@ -179,7 +186,8 @@ def store_file():
             fs.store(uploaded_file.filename, uploaded_file.read())
             return jsonify({"message": f"File {uploaded_file.filename} uploaded successfully"})
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            logging.error(f"File upload error: {e}")  # Log the actual error for debugging
+            return jsonify({"error": "Failed to upload file due to an internal error"}), 400
             
     elif request.method == 'DELETE':
         if current_user['privilege'] != 1:
