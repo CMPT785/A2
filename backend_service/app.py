@@ -106,10 +106,7 @@ def login():
         return jsonify({"error": "Missing username or password"}), 400
     
     user = db.fetch_data("SELECT * FROM users WHERE username = ?", (username,))
-    print(user)
-    print(password)
-    print(check_password_hash(password, user[0][2]))
-    print(user[0][2])
+   
     if not user or not check_password_hash(password, user[0][2]):
         return jsonify({"error": "Invalid credentials"}), 401
     
@@ -202,6 +199,4 @@ def store_file():
 
 if __name__ == "__main__":
     _init_app()
-    print(generate_password_hash("admin1"))
-    print(check_password_hash("admin1" , generate_password_hash("admin1")))
     app.run(host='0.0.0.0', debug=False, port=9090)
