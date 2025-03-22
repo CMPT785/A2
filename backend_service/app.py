@@ -17,15 +17,16 @@ import jwt
 import pickle
 import sqlite3
 import logging
+from dotenv import load_dotenv
 from utils.db_utils import DatabaseUtils
 from utils.file_storage import FileStorage
 import bcrypt
 from functools import wraps
-from secrets import Secrets
+import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-
+load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY") 
 
 logging.basicConfig(level=logging.INFO)
@@ -105,8 +106,11 @@ def login():
         return jsonify({"error": "Missing username or password"}), 400
     
     user = db.fetch_data("SELECT * FROM users WHERE username = ?", (username,))
-    
-    if not user or not check_password_hash(user[0][2], password):
+    print(user)
+    print(password)
+    print(check_password_hash(password, user[0][2]))
+    print(user[0][2])
+    if not user or not check_password_hash(password, user[0][2]):
         return jsonify({"error": "Invalid credentials"}), 401
     
     # Create token with expiration
@@ -136,14 +140,7 @@ def login():
 @app.route("/logout", methods=["POST"])
 def logout():
     res = make_response(jsonify({"message": "Logout successful"}))
-    res.set_cookie(
-        "token", 
-        "", 
-        expires=0, 
-        secure=True,      # Ensures cookie is only sent over HTTPS
-        httponly=True,    # Prevents JavaScript access to cookie
-        samesite='Strict' # Prevents CSRF attacks
-    )
+    res.set_cookie("token", "", expires=0)
     return res
 
 
@@ -185,8 +182,7 @@ def store_file():
             fs.store(uploaded_file.filename, uploaded_file.read())
             return jsonify({"message": f"File {uploaded_file.filename} uploaded successfully"})
         except ValueError as e:
-            logging.error(f"File upload error: {e}")  # Log the actual error for debugging
-            return jsonify({"error": "Failed to upload file due to an internal error"}), 400
+            return jsonify({"error": str(e)}), 400
             
     elif request.method == 'DELETE':
         if current_user['privilege'] != 1:
@@ -206,4 +202,6 @@ def store_file():
 
 if __name__ == "__main__":
     _init_app()
+    print(generate_password_hash("admin1"))
+    print(check_password_hash("admin1" , generate_password_hash("admin1")))
     app.run(host='0.0.0.0', debug=False, port=9090)
