@@ -11,7 +11,7 @@ class FileStorage(Storage):
         try:
             os.mkdir(storage_directory, exist_ok=True)
         except:
-            return Exception("Could not create storage directory")
+            None
     
     
     def store(self, filename, contents):
@@ -20,20 +20,18 @@ class FileStorage(Storage):
         
         if len(contents) > 10 * 1024 * 1024:  # 10 MB
             raise ValueError("File too large")
-            
-        file_path = os.path.normpath(os.path.join(self.storage_directory, safe_filename))
-
+        os.makedirs(self.storage_directory, exist_ok=True)
+        file_path = os.path.join(self.storage_directory, safe_filename)
         if not file_path.startswith(os.path.abspath(self.storage_directory)):
             raise ValueError("Invalid file path")
-        
         with open(file_path, 'wb') as fp:
             fp.write(contents)
 
     def get(self, filename):
         # Sanitize filename to prevent path traversal
         safe_filename = os.path.basename(filename)
-        file_path = os.path.normpath(os.path.join(self.storage_directory, safe_filename))
-        
+        file_path = os.path.join(self.storage_directory, safe_filename)
+
         # Prevent directory traversal
         if not file_path.startswith(os.path.abspath(self.storage_directory)):
             raise ValueError("Invalid file path")
@@ -48,7 +46,7 @@ class FileStorage(Storage):
     def delete(self, filename):
         # Sanitize filename to prevent path traversal
         safe_filename = os.path.basename(filename)
-        file_path = os.path.normpath(os.path.join(self.storage_directory, safe_filename))
+        file_path = os.path.join(self.storage_directory, safe_filename)
         # Prevent directory traversal
         if not file_path.startswith(os.path.abspath(self.storage_directory)):
             raise ValueError("Invalid file path")

@@ -17,15 +17,16 @@ import jwt
 import pickle
 import sqlite3
 import logging
+from dotenv import load_dotenv
 from utils.db_utils import DatabaseUtils
 from utils.file_storage import FileStorage
 import bcrypt
 from functools import wraps
-from secrets import Secrets
+import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-
+load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY") 
 
 logging.basicConfig(level=logging.INFO)
@@ -105,8 +106,8 @@ def login():
         return jsonify({"error": "Missing username or password"}), 400
     
     user = db.fetch_data("SELECT * FROM users WHERE username = ?", (username,))
-    
-    if not user or not check_password_hash(user[0][2], password):
+   
+    if not user or not check_password_hash(password, user[0][2]):
         return jsonify({"error": "Invalid credentials"}), 401
     
     # Create token with expiration
